@@ -42,16 +42,25 @@ resource "aws_internet_gateway" "igw" {
     }
 }
 
+resource aws_eip "nat" {
+    domain = "vpc"
+
+    tags = {
+        Name = "wale-nat-gw-eip"
+    }
+}
+
 # NAT Gateway
 resource "aws_nat_gateway" "nat" {
     subnet_id     = aws_subnet.public-sn[0].id
+    allocation_id = aws_eip.nat.id
 
     tags = {
         Name = "wales-nat-gw"
     }
 }
 
-# Route Tables
+# Route tables
 resource "aws_route_table" "public-rt" {
     vpc_id = aws_vpc.main.id
 

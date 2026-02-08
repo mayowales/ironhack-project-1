@@ -12,7 +12,8 @@ module "compute" {
   source   = "./modules/compute"
   vpc_id   = module.network.vpc_id
   vpc_cidr = module.network.vpc_cidr_block
-  # We take the first ID from the list outputs
+
+  # take the first ID from the list outputs
   public_subnet_id  = module.network.public_subnet_ids[0]
   private_subnet_id = module.network.private_subnet_ids[0]
 
