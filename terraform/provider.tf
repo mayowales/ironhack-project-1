@@ -6,6 +6,14 @@ terraform {
       version = "~> 5.0"
     }
   }
+  
+  backend "s3" {
+    bucket         = "wale-first-project-bucket"
+    key            = "terraform.tfstate"
+    region         = "us-east-1"
+    encryt         = true
+    dynamodb_table = "wale-first-prj-table"
+  }
 }
 
 provider "aws" {
