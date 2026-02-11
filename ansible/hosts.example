@@ -1,0 +1,15 @@
+[frontend]
+frontend-instance-1  
+[backend]
+backend-instance-1 
+
+[db]
+db-instance-1 
+
+
+[all:vars]
+ansible_user=ubuntu
+ansible_ssh_private_key_file=/home/wales/.ssh/<your-key.pem>
+
+db_private_ip=xx.xx.xx.xxx
+backend_private_ip=xx.xx.xx.xxx

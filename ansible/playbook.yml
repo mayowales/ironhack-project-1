@@ -1,0 +1,120 @@
+---
+- name: Global Setup (Docker & Permissions)
+  hosts: all
+  become: true
+  tasks:
+    - name: Update apt
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install Docker and Python dependencies
+      ansible.builtin.apt:
+        name: 
+          - docker.io
+          - python3-docker
+          - python3-requests
+        update_cache: true
+        state: present
+
+    - name: Ensure Docker is running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add ubuntu user to docker group
+      ansible.builtin.user:
+        name: ubuntu
+        groups: docker
+        append: true
+############################################################
+#  DB  (Postgres)
+############################################################
+- name: Database Tier
+  hosts: db
+  become: true
+  tasks:
+    - name: Run Postgres Container
+      community.docker.docker_container:
+        name: postgres
+        image: postgres:15-alpine
+        published_ports: ["5432:5432"]
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        volumes:
+          - postgres_data:/var/lib/postgresql/data
+        restart_policy: always
+        recreate: true
+        state: started
+
+    - name: Wait for Postgres to be ready
+      ansible.builtin.wait_for:
+        port: 5432
+        delay: 5
+        timeout: 30
+############################################################
+#  Backend  (Redis & Worker)
+############################################################
+- name: Backend Tier (Redis + Worker)
+  hosts: backend
+  become: true
+  tasks:
+    - name: Run Redis
+      community.docker.docker_container:
+        name: redis
+        image: redis:alpine
+        published_ports: ["6379:6379"]
+        restart_policy: always
+        state: started
+
+    - name: Run Worker App
+      community.docker.docker_container:
+        name: worker
+        image: mayowales/worker-app:latest
+        env:
+          REDIS_HOST: "{{ backend_private_ip }}"
+          POSTGRES_HOST: "{{ db_private_ip }}"
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        etc_hosts:
+          db: "{{ db_private_ip }}"
+        restart_policy: always
+        recreate: true
+        state: started
+############################################################
+#  Frontend  (Vote + Result)
+############################################################
+- name: Frontend Tier (Vote + Result)
+  hosts: frontend
+  become: true
+  tasks:
+    - name: Run Voting App
+      community.docker.docker_container:
+        name: vote
+        image: mayowales/voting-app:latest
+        published_ports: ["80:80"]
+        env:
+          REDIS_HOST: "{{ backend_private_ip }}"
+        restart_policy: always
+        recreate: true
+        state: started
+
+    - name: Run Result App
+      community.docker.docker_container:
+        name: result
+        image: mayowales/result-app:latest
+        published_ports: ["81:80"]
+        env:
+          POSTGRES_HOST: "{{ db_private_ip }}"
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        etc_hosts:
+          db: "{{ db_private_ip }}"
+        restart_policy: always
+        recreate: true
+        state: started
